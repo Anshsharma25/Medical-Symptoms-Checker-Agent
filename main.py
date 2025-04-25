@@ -1,26 +1,70 @@
-import os
-from dotenv import load_dotenv
-from langchain.agents import initialize_agent, Tool
-from langchain_community.llms import HuggingFaceHub
-from tools.followup_tool import FollowUpTool
-from tools.diagnosis_tool import DiagnoseTool
-from tools.report_tool import ReportTool
+from ollama import Client
+from langchain.agents import initialize_agent, Tool, AgentType
 
-load_dotenv()  # Load .env file
-hf_token = os.getenv("HUGGINGFACEHUB_API_TOKEN")
+# # === Step 1: Load LLaMA 3.2 via Ollama ===
+# print("🔄 Loading LLaMA 3.2 model via Ollama...")
+# llm = Ollama(model="llama3.2:3b")  # You can also use "llama3.2:1b" for a lighter model
+# print("✅ LLaMA 3.2 model is ready.")
 
-llm = HuggingFaceHub(
-    repo_id="google/flan-t5-xl",
-    huggingfacehub_api_token=hf_token
-)
+# # === Step 2: Define Medical Q&A Tool ===
+# def dynamic_medical_tool(query: str) -> str:
+#     prompt = (
+#         f"You are a knowledgeable and responsible medical assistant. Answer clearly and accurately:\n\n"
+#         f"Question: {query}\n"
+#         f"Answer:"
+#     )
+#     result = llm(prompt)
+#     return result
 
-tools = [FollowUpTool(), DiagnoseTool(), ReportTool()]
-agent = initialize_agent(tools, llm, agent="zero-shot-react-description", verbose=True)
+# tools = [
+#     Tool(
+#         name="MedicalQnA",
+#         func=dynamic_medical_tool,
+#         description="Use this to answer medical questions like symptoms, treatments, or diseases.",
+#     )
+# ]
 
-if __name__ == "__main__":
-    user_input = input("Enter your symptoms: ")
-    language = input("Choose language (en for English, hi for Hindi): ")
-    output = agent.run({"input": user_input, "language": language})
-    print("\nReport generated! Check outputs/ folder.")
+# # === Step 3: Initialize Agent ===
+# agent = initialize_agent(
+#     tools=tools,
+#     llm=llm,
+#     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+#     verbose=True
+# )
+
+def call_groq_api(user_query):
+    try:
+        # 🧠 Enhanced prompt: adding more clear instructions to the model
+        system_prompt = (
+            "You are a knowledgeable and responsible medical assistant. Answer clearly and accurately:\n\n\n\n"
+            f"### Question:\n{user_query}\n"
+        )
+
+        # Initialize Ollama client
+        client = Client()
+
+        # Call the Ollama API with the refined prompt
+        response = client.chat(
+            model="llama3.2:latest",
+            messages=[
+                {"role": "user", "content": system_prompt}
+            ]
+        )
+
+        # Extract and print the answer
+        answer = response['message']['content'].strip()
+        print("\n\nAnswer:", answer)
+        return answer
+
+    except Exception as e:
+        print(f"Error calling Ollama API: {e}")
+        return "Sorry, I couldn't process your request at the moment."
 
 
+# === Step 4: Test User Query ===
+user_query = input("💬 Enter your medical question: ")
+print("\n🧠 Running Agent...")
+response = call_groq_api(user_query)
+
+print("\n🩺 Agent Response:")
+print(response)

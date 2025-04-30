@@ -1,3 +1,4 @@
+# For medical Q&A using LLaMA 3.2 via Ollama model and downloading the model from Ollama Hub.
 from ollama import Client
 from langchain.agents import initialize_agent, Tool, AgentType
 
